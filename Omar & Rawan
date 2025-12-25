@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Gallery with Music</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            background: #f8f9ff;
+            cursor: pointer;
+        }
+
+        input[type="url"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        input[type="url"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .music-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .photo-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            animation: fadeIn 0.5s;
+        }
+
+        .photo-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.2);
+        }
+
+        .photo-card img {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .photo-card .photo-name {
+            padding: 15px;
+            text-align: center;
+            color: #333;
+            font-weight: 500;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .status {
+            text-align: center;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            margin-top: 20px;
+            color: #333;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: white;
+            font-size: 1.2em;
+            margin-top: 50px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📸 Photo Gallery with Music 🎵</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label>Upload Photos:</label>
+                <input type="file" id="photoInput" accept="image/*" multiple>
+            </div>
+            
+            <div class="control-group">
+                <label>Background Music URL (MP3, etc.):</label>
+                <input type="url" id="musicUrl" placeholder="https://example.com/song.mp3">
+                <div class="music-controls">
+                    <button id="playBtn" disabled>▶️ Play Music</button>
+                    <button id="pauseBtn" disabled>⏸️ Pause</button>
+                    <button id="stopBtn" disabled>⏹️ Stop</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="gallery" id="gallery"></div>
+        
+        <div class="empty-state" id="emptyState">
+            Upload some photos to get started! 🖼️
+        </div>
+
+        <div class="status" id="status" style="display: none;"></div>
+    </div>
+
+    <audio id="bgMusic" loop></audio>
+
+    <script>
+        const photoInput = document.getElementById('photoInput');
+        const musicUrl = document.getElementById('musicUrl');
+        const playBtn = document.getElementById('playBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const bgMusic = document.getElementById('bgMusic');
+        const gallery = document.getElementById('gallery');
+        const emptyState = document.getElementById('emptyState');
+        const status = document.getElementById('status');
+
+        let photos = [];
+
+        photoInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    photos.push({
+                        url: event.target.result,
+                        name: file.name
+                    });
+                    renderGallery();
+                };
+                reader.readAsDataURL(file);
+            });
+        });
+
+        musicUrl.addEventListener('input', () => {
+            if (musicUrl.value.trim()) {
+                bgMusic.src = musicUrl.value.trim();
+                playBtn.disabled = false;
+                pauseBtn.disabled = false;
+                stopBtn.disabled = false;
+            } else {
+                playBtn.disabled = true;
+                pauseBtn.disabled = true;
+                stopBtn.disabled = true;
+            }
+        });
+
+        playBtn.addEventListener('click', () => {
+            bgMusic.play().then(() => {
+                showStatus('🎵 Music playing...');
+            }).catch(err => {
+                showStatus('❌ Error playing music. Check the URL.');
+            });
+        });
+
+        pauseBtn.addEventListener('click', () => {
+            bgMusic.pause();
+            showStatus('⏸️ Music paused');
+        });
+
+        stopBtn.addEventListener('click', () => {
+            bgMusic.pause();
+            bgMusic.currentTime = 0;
+            showStatus('⏹️ Music stopped');
+        });
+
+        function renderGallery() {
+            if (photos.length === 0) {
+                emptyState.style.display = 'block';
+                gallery.innerHTML = '';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            gallery.innerHTML = photos.map(photo => `
+                <div class="photo-card">
+                    <img src="${photo.url}" alt="${photo.name}">
+                    <div class="photo-name">${photo.name}</div>
+                </div>
+            `).join('');
+        }
+
+        function showStatus(message) {
+            status.textContent = message;
+            status.style.display = 'block';
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
